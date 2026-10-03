@@ -27,6 +27,12 @@ public final class WallpaperWindow: NSWindow {
         self.contentView = contentView
     }
 
+    public func replaceContent(_ view: NSView) {
+        view.frame = NSRect(origin: .zero, size: frame.size)
+        view.autoresizingMask = [.width, .height]
+        contentView = view
+    }
+
     // A wallpaper must never take focus.
     public override var canBecomeKey: Bool { false }
     public override var canBecomeMain: Bool { false }
