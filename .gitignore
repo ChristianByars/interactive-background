@@ -1,0 +1,16 @@
+.build/
+.swiftpm/
+.DS_Store
+.superpowers/
+build/
+.claude/autoharness/
+.vscode/
+
+# Local working files (not part of the project)
+CLAUDE.md
+TASKS.md
+dashboard.html
+memory/
+.claude/
+docs/superpowers/
+docs/interaction-design.md
