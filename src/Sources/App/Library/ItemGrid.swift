@@ -19,7 +19,10 @@ struct ItemGrid: View {
                 ForEach(model.store.items) { item in
                     ItemTile(
                         item: item, store: model.store, isCurrent: item.id == currentID,
-                        onSelect: { select(item) })
+                        onSelect: { select(item) },
+                        onSetOnAllDisplays: { model.assignToAll(itemID: item.id) },
+                        onRename: { model.rename(itemID: item.id, to: $0) },
+                        onRemove: { model.remove(itemID: item.id) })
                 }
                 ForEach(model.importQueue.pending) { entry in
                     ImportProgressTile(entry: entry)

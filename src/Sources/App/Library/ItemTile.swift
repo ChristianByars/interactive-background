@@ -7,8 +7,14 @@ struct ItemTile: View {
     let store: LibraryStore
     let isCurrent: Bool
     let onSelect: () -> Void
+    let onSetOnAllDisplays: () -> Void
+    let onRename: (String) -> Void
+    let onRemove: () -> Void
 
     @State private var duration: Double?
+    @State private var showRename = false
+    @State private var nameDraft = ""
+    @State private var confirmRemove = false
 
     private var isMissing: Bool { store.missingIDs.contains(item.id) }
 
@@ -31,6 +37,32 @@ struct ItemTile: View {
         }
         .buttonStyle(.plain)
         .task(id: item.id) { await loadDuration() }
+        .contextMenu {
+            Button("Set on All Displays", action: onSetOnAllDisplays)
+            if !item.isBuiltin {
+                Button("Rename…") {
+                    nameDraft = item.name
+                    showRename = true
+                }
+                Divider()
+                Button("Remove from Library…", role: .destructive) { confirmRemove = true }
+            }
+        }
+        .alert("Rename", isPresented: $showRename) {
+            TextField("Name", text: $nameDraft)
+            Button("Rename") {
+                let name = nameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !name.isEmpty { onRename(name) }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog(
+            "Remove “\(item.name)” from the library?", isPresented: $confirmRemove
+        ) {
+            Button("Remove", role: .destructive, action: onRemove)
+        } message: {
+            Text("The imported copy of the video is deleted. The original file is not touched.")
+        }
     }
 
     private var badge: some View {

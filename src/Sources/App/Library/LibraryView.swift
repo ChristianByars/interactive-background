@@ -4,9 +4,9 @@ import UniformTypeIdentifiers
 struct LibraryView: View {
     @Bindable var model: AppModel
     @State private var showImporter = false
+    @State private var showInspector = true
 
     var body: some View {
-        // TODO(Task 11): the settings inspector (.inspector) attaches here.
         VStack(alignment: .leading, spacing: 12) {
             if !model.errorMessages.isEmpty {
                 ErrorBanner(messages: model.errorMessages, onDismiss: model.dismissErrors)
@@ -23,6 +23,15 @@ struct LibraryView: View {
                     Label("Import", systemImage: "plus")
                 }
             }
+            ToolbarItem {
+                Button { showInspector.toggle() } label: {
+                    Label("Inspector", systemImage: "sidebar.trailing")
+                }
+            }
+        }
+        .inspector(isPresented: $showInspector) {
+            InspectorView(model: model)
+                .inspectorColumnWidth(min: 240, ideal: 280, max: 360)
         }
         .fileImporter(
             isPresented: $showImporter, allowedContentTypes: [.movie],
