@@ -7,6 +7,7 @@ final class DisplayManager {
     struct Entry {
         let window: WallpaperWindow
         var frame: CGRect
+        var occlusionObserver: NSObjectProtocol?
     }
 
     private(set) var entries: [DisplayID: Entry] = [:]
@@ -16,6 +17,8 @@ final class DisplayManager {
     var contentProvider: ((DisplayID) -> NSView)?
     /// Called after a display's window is closed.
     var onRemoved: ((DisplayID) -> Void)?
+    /// Called with `(display, occluded)`: once after a window is created, then on every change.
+    var onOcclusionChanged: ((DisplayID, Bool) -> Void)?
     /// Called after a screen-parameters notification has been synced.
     var onSynced: ((DisplayDiff) -> Void)?
 
@@ -62,8 +65,7 @@ final class DisplayManager {
 
         for id in diff.removed {
             guard let entry = entries.removeValue(forKey: id) else { continue }
-            entry.window.orderOut(nil)
-            entry.window.close()
+            removeWindow(of: entry)
             onRemoved?(id)
             Log.display.notice("window removed for display \(id, privacy: .public)")
         }
@@ -72,7 +74,17 @@ final class DisplayManager {
             let content = contentProvider?(id) ?? Self.blackView()
             let window = WallpaperWindow(screen: screen, contentView: content)
             window.orderFrontRegardless()
-            entries[id] = Entry(window: window, frame: screen.frame)
+            let observer = NotificationCenter.default.addObserver(
+                forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main
+            ) { [weak self, weak window] _ in
+                MainActor.assumeIsolated {
+                    guard let self, let window else { return }
+                    self.onOcclusionChanged?(id, Self.isOccluded(window))
+                }
+            }
+            entries[id] = Entry(window: window, frame: screen.frame, occlusionObserver: observer)
+            // A new window may only report its state after being ordered front, so read it once now.
+            onOcclusionChanged?(id, Self.isOccluded(window))
             Log.display.notice("window created for display \(id, privacy: .public) (\(screen.localizedName, privacy: .public)) frame \(NSStringFromRect(screen.frame), privacy: .public)")
         }
         for id in diff.resized {
@@ -90,10 +102,19 @@ final class DisplayManager {
         stopObserving()
         for id in Array(entries.keys) {
             guard let entry = entries.removeValue(forKey: id) else { continue }
-            entry.window.orderOut(nil)
-            entry.window.close()
+            removeWindow(of: entry)
             onRemoved?(id)
         }
+    }
+
+    private func removeWindow(of entry: Entry) {
+        if let observer = entry.occlusionObserver { NotificationCenter.default.removeObserver(observer) }
+        entry.window.orderOut(nil)
+        entry.window.close()
+    }
+
+    private static func isOccluded(_ window: NSWindow) -> Bool {
+        !window.occlusionState.contains(.visible)
     }
 
     static func blackView() -> NSView {

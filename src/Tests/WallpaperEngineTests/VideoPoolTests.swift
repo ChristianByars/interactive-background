@@ -50,6 +50,19 @@ import WallpaperCore
         }
     }
 
+    @Test func acquireAttachesDisplayWithInitialPauseState() throws {
+        let pool = VideoPlayerPool()
+        let url = try badMov()
+        _ = pool.acquire(itemID: "x", fileURL: url, settings: VideoSettings(), displayID: "A", paused: true)
+        #expect(pool.isPaused(itemID: "x", displayID: "A"))
+        // Joining an existing entry takes the passed state, not an implicit "unpaused".
+        _ = pool.acquire(itemID: "x", fileURL: url, settings: VideoSettings(), displayID: "B", paused: true)
+        _ = pool.acquire(itemID: "x", fileURL: url, settings: VideoSettings(), displayID: "C")
+        #expect(pool.isPaused(itemID: "x", displayID: "B"))
+        #expect(!pool.isPaused(itemID: "x", displayID: "C"))
+        for d in ["A", "B", "C"] { pool.release(itemID: "x", displayID: d) }
+    }
+
     @Test func settingsReachSharedPlayer() throws {
         let pool = VideoPlayerPool()
         let player = pool.acquire(itemID: "x", fileURL: try badMov(), settings: VideoSettings(), displayID: "A")

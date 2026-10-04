@@ -14,12 +14,13 @@ final class VideoRenderer: WallpaperRenderer {
 
     var view: NSView { playerView }
 
-    init(itemID: String, fileURL: URL, settings: VideoSettings, displayID: DisplayID, pool: VideoPlayerPool) {
+    init(itemID: String, fileURL: URL, settings: VideoSettings, displayID: DisplayID, pool: VideoPlayerPool,
+         paused: Bool = false) {
         self.itemID = itemID
         self.displayID = displayID
         self.pool = pool
         playerView.playerLayer.player = pool.acquire(
-            itemID: itemID, fileURL: fileURL, settings: settings, displayID: displayID)
+            itemID: itemID, fileURL: fileURL, settings: settings, displayID: displayID, paused: paused)
         setFit(settings.fit)
         Log.playback.info("video renderer for \(itemID, privacy: .public) on display \(displayID, privacy: .public)")
     }

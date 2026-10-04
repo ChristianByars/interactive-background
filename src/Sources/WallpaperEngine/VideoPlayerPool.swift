@@ -67,10 +67,13 @@ final class VideoPlayerPool {
     /// Called once per failed item (load error, zero duration, looper or item failure).
     var onFailure: ((String) -> Void)?
 
-    func acquire(itemID: String, fileURL: URL, settings: VideoSettings, displayID: DisplayID) -> AVQueuePlayer {
+    /// `paused` is the display's pause state at attach time, so a display joining a globally
+    /// paused item never causes a play/pause flicker on the shared player.
+    func acquire(itemID: String, fileURL: URL, settings: VideoSettings, displayID: DisplayID,
+                 paused: Bool = false) -> AVQueuePlayer {
         if let entry = entries[itemID] {
             entry.attached.insert(displayID)
-            entry.paused.remove(displayID)
+            if paused { entry.paused.insert(displayID) } else { entry.paused.remove(displayID) }
             if entry.fileURL != fileURL {
                 // Same item, new file: reload on the same player so existing layers keep working.
                 Log.playback.notice("pool \(itemID, privacy: .public): file changed, reloading")
@@ -90,6 +93,7 @@ final class VideoPlayerPool {
 
         let entry = Entry(itemID: itemID, fileURL: fileURL, settings: settings)
         entry.attached.insert(displayID)
+        if paused { entry.paused.insert(displayID) }
         entry.player.preventsDisplaySleepDuringVideoPlayback = false
         // actionAtItemEnd is managed by the looper; do not override it.
         entry.failureObserver = NotificationCenter.default.addObserver(
@@ -144,6 +148,10 @@ final class VideoPlayerPool {
         guard let entry = entries[itemID], entry.attached.contains(displayID) else { return }
         if paused { entry.paused.insert(displayID) } else { entry.paused.remove(displayID) }
         updatePlayback(entry)
+    }
+
+    func isPaused(itemID: String, displayID: DisplayID) -> Bool {
+        entries[itemID]?.paused.contains(displayID) ?? false
     }
 
     // MARK: Private
