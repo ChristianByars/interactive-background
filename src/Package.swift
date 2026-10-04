@@ -21,6 +21,11 @@ let package = Package(
             dependencies: ["WallpaperCore"],
             path: "Tests/WallpaperCoreTests"
         ),
+        .testTarget(
+            name: "WallpaperEngineTests",
+            dependencies: ["WallpaperEngine", "WallpaperCore"],
+            path: "Tests/WallpaperEngineTests"
+        ),
     ],
     swiftLanguageModes: [.v5]
 )

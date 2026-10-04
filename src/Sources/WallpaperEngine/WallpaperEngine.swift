@@ -22,6 +22,7 @@ public final class WallpaperEngine {
     }
 
     private let displayManager = DisplayManager()
+    private let pool = VideoPlayerPool()
     private var slots: [DisplayID: Slot] = [:]
     private var resolve: ((DisplayID) -> RenderSpec)?
     private var manualPause = false
@@ -30,7 +31,9 @@ public final class WallpaperEngine {
     /// Called with the item id whose content failed to play/load.
     public var onPlaybackFailed: ((String) -> Void)?
 
-    public init() {}
+    public init() {
+        pool.onFailure = { [weak self] itemID in self?.reportFailure(itemID) }
+    }
 
     public func start(resolve: @escaping (DisplayID) -> RenderSpec) {
         self.resolve = resolve
@@ -54,12 +57,19 @@ public final class WallpaperEngine {
         notifyDisplaysChanged()
     }
 
-    /// Re-resolve every display; rebuild only displays whose item changed.
+    /// Re-resolve every display; rebuild only displays whose item or file changed.
+    /// Settings-only changes are applied live.
     public func refresh() {
         guard let resolve else { return }
         for id in displayManager.displayIDs {
             let spec = resolve(id)
-            guard slots[id]?.spec.itemID != spec.itemID else { continue }
+            if let current = slots[id]?.spec,
+               current.itemID == spec.itemID, current.contentURL == spec.contentURL {
+                if current != spec, case .video(let itemID, _, let settings) = spec {
+                    applySettings(itemID: itemID, settings)
+                }
+                continue
+            }
             slots.removeValue(forKey: id)?.renderer.tearDown()
             let view = install(spec, for: id)
             displayManager.setContent(view, for: id)
@@ -68,9 +78,14 @@ public final class WallpaperEngine {
         applyPauseState()
     }
 
-    /// No-op until Task 9 (video settings).
+    /// Applies speed/audio/trim to the item's shared player and fit to its live layers, without a rebuild.
     public func applySettings(itemID: String, _ settings: VideoSettings) {
-        // TODO(Task 9): forward to the video renderer / player pool.
+        pool.apply(itemID: itemID, settings: settings)
+        for (id, slot) in slots {
+            guard case .video(let slotItemID, let fileURL, _) = slot.spec, slotItemID == itemID else { continue }
+            slots[id]?.spec = .video(itemID: itemID, fileURL: fileURL, settings: settings)
+            (slot.renderer as? VideoRenderer)?.setFit(settings.fit)
+        }
     }
 
     public func setManualPause(_ paused: Bool) {
@@ -90,22 +105,27 @@ public final class WallpaperEngine {
 
     /// Builds the renderer for `spec`, records it for the display, and returns its view.
     private func install(_ spec: RenderSpec, for id: DisplayID) -> NSView {
-        let renderer = makeRenderer(for: spec)
+        let renderer = makeRenderer(for: spec, display: id)
         slots[id] = Slot(spec: spec, renderer: renderer)
         renderer.setPaused(manualPause)
         return renderer.view
     }
 
-    private func makeRenderer(for spec: RenderSpec) -> WallpaperRenderer {
+    private func makeRenderer(for spec: RenderSpec, display: DisplayID) -> WallpaperRenderer {
         switch spec {
         case .web(let itemID, let indexURL):
             let renderer = WebRenderer(itemID: itemID, indexURL: indexURL)
-            renderer.onLoadFailed = { [weak self] in self?.onPlaybackFailed?(itemID) }
+            renderer.onLoadFailed = { [weak self] in self?.reportFailure(itemID) }
             return renderer
-        case .video:
-            // TODO(Task 9): replace with VideoRenderer. Until then show solid black.
-            return BlackRenderer()
+        case .video(let itemID, let fileURL, let settings):
+            return VideoRenderer(itemID: itemID, fileURL: fileURL, settings: settings, displayID: display, pool: pool)
         }
+    }
+
+    /// The app reacts by refreshing, which tears renderers down. Hop to the next main-actor turn
+    /// so that never happens re-entrantly inside the renderer's own AVFoundation/WebKit callback.
+    private func reportFailure(_ itemID: String) {
+        Task { @MainActor [weak self] in self?.onPlaybackFailed?(itemID) }
     }
 
     private func notifyDisplaysChanged() {
@@ -116,12 +136,4 @@ public final class WallpaperEngine {
         }
         onDisplaysChanged?(infos)
     }
-}
-
-/// Placeholder renderer for video specs until Task 9.
-@MainActor
-final class BlackRenderer: WallpaperRenderer {
-    let view: NSView = DisplayManager.blackView()
-    func setPaused(_ paused: Bool) {}
-    func tearDown() {}
 }

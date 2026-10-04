@@ -9,8 +9,8 @@ public protocol WallpaperRenderer: AnyObject {
     func tearDown()
 }
 
-/// What a display should show. Equality decides whether a refresh rebuilds a display:
-/// the engine compares `itemID` only, so settings changes never rebuild.
+/// What a display should show. A refresh rebuilds a display only when `itemID` or
+/// `contentURL` changes; a video whose settings alone changed is updated in place.
 public enum RenderSpec: Equatable {
     case web(itemID: String, indexURL: URL)
     case video(itemID: String, fileURL: URL, settings: VideoSettings)
@@ -19,6 +19,13 @@ public enum RenderSpec: Equatable {
         switch self {
         case .web(let itemID, _): return itemID
         case .video(let itemID, _, _): return itemID
+        }
+    }
+
+    public var contentURL: URL {
+        switch self {
+        case .web(_, let indexURL): return indexURL
+        case .video(_, let fileURL, _): return fileURL
         }
     }
 }

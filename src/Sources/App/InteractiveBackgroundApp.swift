@@ -6,7 +6,13 @@ struct InteractiveBackgroundApp: App {
 
     var body: some Scene {
         MenuBarExtra("Interactive Background", systemImage: "photo.on.rectangle") {
-            Button("Quit") { NSApp.terminate(nil) }
+            MenuContent(model: appDelegate.model)
         }
+
+        Window("Library", id: "library") {
+            LibraryView(model: appDelegate.model)
+        }
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
     }
 }
