@@ -51,12 +51,15 @@ final class AppModel {
 
     // MARK: Actions
 
+    /// A missing item can't play, so assigning it (tile click, menu, Set on All) is a no-op.
     func assign(itemID: String, to display: DisplayID) {
+        guard !store.missingIDs.contains(itemID) else { return }
         store.assign(display: display, itemID: itemID)
         engine.refresh()
     }
 
     func assignToAll(itemID: String) {
+        guard !store.missingIDs.contains(itemID) else { return }
         store.assignAll(displays: displays.map(\.id), itemID: itemID)
         engine.refresh()
     }
@@ -104,8 +107,9 @@ final class AppModel {
     private func playbackFailed(_ itemID: String) {
         // Aurora is the fallback itself; there is nothing safer to switch to.
         guard itemID != WallpaperItem.auroraID else { return }
-        let main = NSScreen.mainDisplayStableID()
-        let affected = displays.map(\.id).filter { store.resolve(display: $0, main: main) == itemID }
+        // Only displays that chose the item themselves; followers of the main display
+        // move with it once the item is marked missing.
+        let affected = displays.map(\.id).filter { store.assignments[$0] == itemID }
         store.markMissing(id: itemID)
         for display in affected { store.assign(display: display, itemID: WallpaperItem.auroraID) }
         engine.refresh()

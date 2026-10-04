@@ -62,13 +62,15 @@ public struct VideoSettings: Codable, Equatable, Sendable {
     }
 
     public init(from decoder: Decoder) throws {
+        // Each field is lenient: one bad value falls back to its default instead of
+        // failing the item, and with it the whole library file.
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        let fit = try c.decodeIfPresent(FitMode.self, forKey: .fit) ?? .fill
-        let speed = try c.decodeIfPresent(Double.self, forKey: .speed) ?? 1.0
-        let audio = try c.decodeIfPresent(Bool.self, forKey: .audioEnabled) ?? false
-        let volume = try c.decodeIfPresent(Double.self, forKey: .volume) ?? 0.5
+        let fit = (try? c.decodeIfPresent(FitMode.self, forKey: .fit)) ?? .fill
+        let speed = (try? c.decodeIfPresent(Double.self, forKey: .speed)) ?? 1.0
+        let audio = (try? c.decodeIfPresent(Bool.self, forKey: .audioEnabled)) ?? false
+        let volume = (try? c.decodeIfPresent(Double.self, forKey: .volume)) ?? 0.5
         var trim: ClosedRange<Double>?
-        if let pair = try c.decodeIfPresent(TrimPair.self, forKey: .trim),
+        if let pair = try? c.decodeIfPresent(TrimPair.self, forKey: .trim),
            pair.start.isFinite, pair.end.isFinite, pair.start <= pair.end {
             trim = pair.start...pair.end
         }

@@ -39,4 +39,30 @@ import Testing
         #expect(TrimRange.normalized(start: 1, end: 2, duration: .nan) == nil)
         #expect(TrimRange.normalized(start: 1, end: 2, duration: .infinity) == nil)
     }
+
+    // MARK: Outcome of OK in the trim editor
+
+    @Test func outcomeSavesARealTrim() {
+        #expect(TrimRange.outcome(start: 2, end: 8, duration: 10) == .save(2...8))
+        #expect(TrimRange.outcome(start: .nan, end: 4, duration: 10) == .save(0...4))
+    }
+
+    @Test func outcomeClearsTrimOnlyForTheWholeVideo() {
+        #expect(TrimRange.outcome(start: 0, end: 10, duration: 10) == .save(nil))
+        #expect(TrimRange.outcome(start: -5, end: 50, duration: 10) == .save(nil))
+        #expect(TrimRange.outcome(start: .nan, end: .nan, duration: 10) == .save(nil))
+        #expect(TrimRange.outcome(start: -.infinity, end: .infinity, duration: 10) == .save(nil))
+    }
+
+    @Test func outcomeKeepsExistingTrimForUnusableSelections() {
+        #expect(TrimRange.outcome(start: 1, end: 1.05, duration: 10) == .keepExisting)
+        #expect(TrimRange.outcome(start: 5, end: 5, duration: 10) == .keepExisting)
+        #expect(TrimRange.outcome(start: 8, end: 2, duration: 10) == .keepExisting)
+        #expect(TrimRange.outcome(start: 9.95, end: .nan, duration: 10) == .keepExisting)
+    }
+
+    @Test func outcomeKeepsExistingTrimForBadDuration() {
+        #expect(TrimRange.outcome(start: 0, end: 10, duration: 0) == .keepExisting)
+        #expect(TrimRange.outcome(start: 0, end: 10, duration: .nan) == .keepExisting)
+    }
 }

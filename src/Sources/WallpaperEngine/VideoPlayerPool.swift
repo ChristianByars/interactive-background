@@ -48,6 +48,8 @@ final class VideoPlayerPool {
         var failed = false
         /// Bumped on every reload and on teardown so a late duration load or looper status is dropped.
         var generation = 0
+        /// Identifies the current looper; a failure report from an older looper is dropped.
+        var looperToken = 0
         var loadTask: Task<Void, Never>?
         var statusObservation: NSKeyValueObservation?
         var failureObserver: NSObjectProtocol?
@@ -63,6 +65,8 @@ final class VideoPlayerPool {
     }
 
     private var entries: [String: Entry] = [:]
+    /// Source of `Entry.looperToken`; pool-wide so a recreated entry never reuses a token.
+    private var looperCount = 0
 
     /// Called once per failed item (load error, zero duration, looper or item failure).
     var onFailure: ((String) -> Void)?
@@ -203,16 +207,17 @@ final class VideoPlayerPool {
             player: entry.player, templateItem: AVPlayerItem(asset: entry.asset), timeRange: range.timeRange)
         entry.looper = looper
         entry.appliedRange = range
-        let generation = entry.generation
+        looperCount += 1
+        entry.looperToken = looperCount
+        let token = entry.looperToken
         let itemID = entry.itemID
         entry.statusObservation = looper.observe(\.status, options: [.initial, .new]) { @Sendable [weak self] looper, _ in
             guard looper.status == .failed else { return }
             let message = looper.error?.localizedDescription ?? "unknown"
-            let looperID = ObjectIdentifier(looper)
             // KVO can fire on any thread; handle it on the main actor, and only for the current looper.
             Task { @MainActor [weak self] in
-                guard let self, let entry = self.entries[itemID], entry.generation == generation,
-                      let current = entry.looper, ObjectIdentifier(current) == looperID else { return }
+                guard let self, let entry = self.entries[itemID], entry.looperToken == token,
+                      entry.looper != nil else { return }
                 self.fail(entry, "looper failed: \(message)")
             }
         }

@@ -18,7 +18,7 @@ Menu shortcuts: Pause All = option-P, Open Library = cmd-L, Quit = cmd-Q.
 - [ ] 8. Lock, display sleep and screensaver each pause the wallpaper and resume afterwards.
 - [ ] 9. Failure handling:
   - [ ] Remove an assigned item: Aurora takes over, and its imported folder is gone.
-  - [ ] Delete a video file while the app is quit: tile shows "Missing", Aurora plays.
+  - [ ] Delete a video file while the app is quit: tile shows "File missing", Aurora plays.
   - [ ] Corrupt `library.json`: it is renamed to `.bad` and the videos are recovered.
 - [ ] 10. Display changes:
   - [ ] A resolution change only resizes the windows.
@@ -53,6 +53,7 @@ Multi-display
 - [ ] Covering one display does not pause the other.
 - [ ] The same video on two displays plays one audio stream.
 - [ ] Attach a display while Pause All is on: the new display stays paused.
+- [ ] Change the primary display (System Settings > Displays > Arrange) with a display that has no own assignment: it follows the new main display's wallpaper without relaunch.
 
 Menu bar
 - [ ] Check marks update live when assigning from the Library.

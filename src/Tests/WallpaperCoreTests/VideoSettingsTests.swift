@@ -111,4 +111,28 @@ import Testing
         #expect(VideoSettings(trim: 1...2).loopRange(duration: 0) == nil)
         #expect(VideoSettings(trim: 1...2).loopRange(duration: -3) == nil)
     }
+
+    @Test func badFieldsFallBackInsteadOfFailing() throws {
+        let unknownFit = try decode(#"{"fit":"zoom","speed":1.5}"#)
+        #expect(unknownFit.fit == .fill)
+        #expect(unknownFit.speed == 1.5)
+
+        let partialTrim = try decode(#"{"fit":"fit","trim":{"start":2}}"#)
+        #expect(partialTrim.fit == .fit)
+        #expect(partialTrim.trim == nil)
+        #expect(try decode(#"{"trim":{"end":4}}"#).trim == nil)
+        #expect(try decode(#"{"trim":"2-4"}"#).trim == nil)
+
+        let wrongTypes = try decode(#"{"speed":"fast","audioEnabled":"yes","volume":null}"#)
+        #expect(wrongTypes == VideoSettings())
+    }
+
+    @Test func badSettingsDoNotLoseTheLibrary() throws {
+        let json = #"{"version":1,"assignments":{},"items":[{"id":"A","name":"A","#
+            + #""source":{"video":{"path":"Videos/A/a.mp4"}},"#
+            + #""settings":{"fit":"zoom","trim":{"start":1}}}]}"#
+        let file = try JSONDecoder().decode(LibraryFile.self, from: Data(json.utf8))
+        #expect(file.items.map(\.id) == ["A"])
+        #expect(file.items.first?.settings == VideoSettings())
+    }
 }

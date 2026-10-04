@@ -19,7 +19,10 @@ struct TrimSheet: View {
         ZStack {
             TrimPlayerView(url: url, currentTrim: currentTrim, onPhase: { phase = $0 }) { outcome in
                 if case .ok(let start, let end) = outcome {
-                    onSave(TrimRange.normalized(start: start, end: end, duration: duration))
+                    switch TrimRange.outcome(start: start, end: end, duration: duration) {
+                    case .save(let trim): onSave(trim)
+                    case .keepExisting: NSSound.beep()  // too short to loop; the old trim stays
+                    }
                 }
                 dismiss()
             }

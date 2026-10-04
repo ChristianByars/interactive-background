@@ -39,6 +39,7 @@ struct ItemTile: View {
         .task(id: item.id) { await loadDuration() }
         .contextMenu {
             Button("Set on All Displays", action: onSetOnAllDisplays)
+                .disabled(isMissing)
             if !item.isBuiltin {
                 Button("Rename…") {
                     nameDraft = item.name
@@ -101,7 +102,8 @@ struct ItemTile: View {
     }
 
     private static func format(_ seconds: Double) -> String {
-        let total = Int(seconds.rounded())
+        // Clamped like TrimBar.format: Int(_:) traps on absurd or non-finite durations.
+        let total = Int((seconds.isFinite ? min(max(seconds, 0), 359_999) : 0).rounded())
         let (h, m, s) = (total / 3600, total % 3600 / 60, total % 60)
         return h > 0
             ? String(format: "%d:%02d:%02d", h, m, s)

@@ -66,17 +66,22 @@ public final class WallpaperEngine {
             guard let self, self.occluded[id] != isOccluded else { return }
             self.occluded[id] = isOccluded
             Log.pause.info("display \(id, privacy: .public) occluded \(isOccluded)")
-            self.applyPauseState()
-            // Don't wait up to 2 s for fresh coverage when a display becomes visible again.
+            // Visible again: poll first so the resume decision uses fresh coverage
+            // instead of resuming and then pausing again up to 2 s later.
             if !isOccluded { self.poller.pollNow() }
+            self.applyPauseState()
         }
         displayManager.onSynced = { [weak self] diff in
             guard let self else { return }
             // Any change matters: a new primary display moves frame origins, so it shows up as `resized`.
             if !diff.added.isEmpty || !diff.removed.isEmpty || !diff.resized.isEmpty {
+                // Displays without their own assignment follow the main display, which may have
+                // changed. Just-added displays already match their spec, so refresh skips them.
+                self.refresh()  // ends with applyPauseState()
                 self.notifyDisplaysChanged()
+            } else {
+                self.applyPauseState()
             }
-            self.applyPauseState()
         }
         monitor.start()
         displayManager.sync(screens: NSScreen.screens)
@@ -134,8 +139,9 @@ public final class WallpaperEngine {
     /// The single place pause is computed: manual || system inactive || covered, per display.
     /// Re-run on every input change (manual, system, occlusion, poll, display changes, new slots).
     private func applyPauseState() {
-        // First, so a poller that just started has already reported (its immediate poll re-enters
-        // here) and a resume never flashes unpaused before coverage is known.
+        // First, so a poller that just started (manual or system resume) has already reported:
+        // its immediate poll re-enters here. A poller that was already running is not re-polled;
+        // the occlusion handler polls before calling this when a display becomes visible again.
         updatePoller()
         let policy = currentPolicy()
         for (id, slot) in slots {

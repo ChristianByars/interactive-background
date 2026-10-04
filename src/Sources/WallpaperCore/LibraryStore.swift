@@ -45,10 +45,16 @@ public final class LibraryStore {
     }
 
     public func thumbnailURL(for item: WallpaperItem) -> URL? {
-        guard case .video = item.source else { return nil }
-        let url = videosRoot.appendingPathComponent(item.id, isDirectory: true)
-            .appendingPathComponent("thumb.jpg")
+        guard case .video = item.source, let folder = videoFolder(for: item.id) else { return nil }
+        let url = folder.appendingPathComponent("thumb.jpg")
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// `Videos/<id>/`, or nil for an id that could name something outside `Videos/`
+    /// (ids come from `library.json`, so they are untrusted).
+    private func videoFolder(for id: String) -> URL? {
+        guard !id.isEmpty, id != ".", id != "..", !id.contains("/") else { return nil }
+        return videosRoot.appendingPathComponent(id, isDirectory: true)
     }
 
     // MARK: Load
@@ -61,20 +67,20 @@ public final class LibraryStore {
         removePartials()
 
         let outcome: LoadOutcome
-        if let data = try? Data(contentsOf: libraryURL) {
-            if let file = try? JSONDecoder().decode(LibraryFile.self, from: data) {
-                apply(file)
-                outcome = .loaded
-            } else {
-                quarantineCorruptFile()
-                apply(LibraryFile())
-                readoptOrphans()
-                save()
-                outcome = .recovered
-            }
-        } else {
+        if !FileManager.default.fileExists(atPath: libraryURL.path) {
             apply(LibraryFile())
             outcome = .fresh
+        } else if let data = try? Data(contentsOf: libraryURL),
+                  let file = try? JSONDecoder().decode(LibraryFile.self, from: data) {
+            apply(file)
+            outcome = .loaded
+        } else {
+            // Unreadable counts as corrupt: treating it as fresh would overwrite it on the next save.
+            quarantineCorruptFile()
+            apply(LibraryFile())
+            readoptOrphans()
+            save()
+            outcome = .recovered
         }
         refreshMissing()
         return outcome
@@ -82,7 +88,12 @@ public final class LibraryStore {
 
     private func apply(_ file: LibraryFile) {
         let builtinIDs = Set(builtins.map(\.id))
-        items = builtins + file.items.filter { !builtinIDs.contains($0.id) && !$0.isBuiltin }
+        // Only built-ins may be web items; stored items must be videos with a safe folder id.
+        items = builtins + file.items.filter { item in
+            guard !builtinIDs.contains(item.id), !item.isBuiltin,
+                  case .video = item.source, videoFolder(for: item.id) != nil else { return false }
+            return true
+        }
         assignments = file.assignments
     }
 
@@ -172,8 +183,9 @@ public final class LibraryStore {
             assignments[display] = WallpaperItem.auroraID
         }
         missingIDs.remove(id)
-        try? FileManager.default.removeItem(
-            at: videosRoot.appendingPathComponent(id, isDirectory: true))
+        if let folder = videoFolder(for: id) {
+            try? FileManager.default.removeItem(at: folder)
+        }
         saveNow()
     }
 

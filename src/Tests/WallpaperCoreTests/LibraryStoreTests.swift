@@ -297,4 +297,86 @@ func waitUntil(timeout: Duration = .seconds(3), _ condition: () -> Bool) async -
         #expect(store.thumbnailURL(for: item) == thumb)
         #expect(store.thumbnailURL(for: .aurora) == nil)
     }
+
+    // MARK: Hostile or unreadable library files
+
+    @Test(arguments: ["", ".", "..", "../x", "a/b", "/"])
+    func removeNeverDeletesOutsideVideos(id: String) throws {
+        let sb = Sandbox()
+        let store = sb.makeStore()
+        store.load()
+        let keep = try sb.makeVideo(name: "Keep")
+        store.add(keep)
+        let fm = FileManager.default
+        try Data("s".utf8).write(to: sb.root.appendingPathComponent("sentinel"))
+        try Data("s".utf8).write(to: sb.root.appendingPathComponent("x"))
+        try fm.createDirectory(at: sb.root.appendingPathComponent("Videos/a/b"),
+                               withIntermediateDirectories: true)
+        try Data("s".utf8).write(to: sb.root.appendingPathComponent("Videos/a/b/clip.mp4"))
+        store.add(WallpaperItem(id: id, name: "Hostile", source: .video(path: "Videos/x.mp4")))
+
+        store.remove(id: id)
+
+        #expect(!store.items.contains { $0.id == id })
+        #expect(sb.exists("sentinel"))
+        #expect(sb.exists("x"))
+        #expect(sb.exists("Videos/a/b/clip.mp4"))
+        #expect(sb.exists("Videos/\(keep.id)/clip.mp4"))
+        #expect(sb.exists("library.json"))
+    }
+
+    @Test func invalidIDsAndStoredWebItemsAreDroppedOnLoad() throws {
+        let sb = Sandbox()
+        let good = try sb.makeVideo(name: "Good")
+        let hostile = ["", ".", "..", "../x", "a/b"].map {
+            WallpaperItem(id: $0, name: "Bad \($0)", source: .video(path: "Videos/x.mp4"))
+        }
+        let web = WallpaperItem(id: "web-1", name: "Web", source: .web(folder: "../../evil"))
+        let file = LibraryFile(items: [good] + hostile + [web])
+        try JSONEncoder().encode(file).write(to: sb.libraryJSON)
+
+        let store = sb.makeStore()
+        #expect(store.load() == .loaded)
+        #expect(store.items.map(\.id) == [WallpaperItem.auroraID, good.id])
+        #expect(store.thumbnailURL(for: hostile[2]) == nil)
+    }
+
+    @Test(.enabled(if: getuid() != 0, "root can read a mode-000 file"))
+    func unreadableLibraryIsRecoveredNotOverwritten() throws {
+        let sb = Sandbox()
+        let orphan = try sb.makeVideo(name: "Sunset", file: "Sunset.mov")
+        let original = Data(#"{"version":1,"items":[],"assignments":{}}"#.utf8)
+        try original.write(to: sb.libraryJSON)
+        let fm = FileManager.default
+        try fm.setAttributes([.posixPermissions: 0], ofItemAtPath: sb.libraryJSON.path)
+        defer {
+            for url in [sb.libraryJSON, sb.badJSON] {
+                try? fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: url.path)
+            }
+        }
+
+        let store = sb.makeStore()
+        #expect(store.load() == .recovered)
+        #expect(sb.exists("library.json.bad"))
+        #expect(store.items.map(\.id) == [WallpaperItem.auroraID, orphan.id])
+
+        // The unreadable original is preserved byte for byte in .bad.
+        try fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: sb.badJSON.path)
+        #expect(try Data(contentsOf: sb.badJSON) == original)
+        let again = sb.makeStore()
+        #expect(again.load() == .loaded)
+        #expect(again.items.map(\.id) == store.items.map(\.id))
+    }
+
+    @Test func directoryAtLibraryPathIsRecovered() throws {
+        let sb = Sandbox()
+        let orphan = try sb.makeVideo(name: "Sunset", file: "Sunset.mov")
+        try FileManager.default.createDirectory(at: sb.libraryJSON, withIntermediateDirectories: true)
+
+        let store = sb.makeStore()
+        #expect(store.load() == .recovered)
+        #expect(sb.exists("library.json.bad"))
+        #expect(store.items.map(\.id) == [WallpaperItem.auroraID, orphan.id])
+        #expect(sb.makeStore().load() == .loaded)
+    }
 }

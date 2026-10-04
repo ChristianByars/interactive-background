@@ -38,9 +38,10 @@ struct MenuContent: View {
             get: { model.store.resolve(display: display.id, main: model.mainDisplayID) },
             set: { model.assign(itemID: $0, to: display.id) }
         )) {
-            ForEach(model.store.items) { item in
-                Text(model.store.missingIDs.contains(item.id) ? "\(item.name) (missing)" : item.name)
-                    .tag(item.id)
+            // Missing items can't be assigned, so they aren't offered; the selection
+            // never names one (resolve falls back to Aurora).
+            ForEach(model.store.items.filter { !model.store.missingIDs.contains($0.id) }) { item in
+                Text(item.name).tag(item.id)
             }
         }
         .pickerStyle(.inline)
