@@ -9,6 +9,7 @@ final class AppModel {
     let store: LibraryStore
     let engine = WallpaperEngine()
     let importQueue: ImportQueue
+    let launchAtLogin = LaunchAtLogin()
 
     private(set) var displays: [DisplayInfo] = []
     var selectedDisplay: DisplayID?

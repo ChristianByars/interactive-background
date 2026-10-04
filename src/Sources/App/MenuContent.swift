@@ -29,6 +29,15 @@ struct MenuContent: View {
 
         Divider()
 
+        if model.launchAtLogin.status == .requiresApproval {
+            Button("Approve Launch at Login…") { model.launchAtLogin.openLoginItemsSettings() }
+        } else {
+            Toggle("Launch at Login", isOn: Binding(
+                get: { model.launchAtLogin.isEnabled },
+                set: { model.launchAtLogin.setEnabled($0) }
+            ))
+        }
+
         Button("Quit") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
     }

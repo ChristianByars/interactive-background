@@ -6,4 +6,5 @@ public enum Log {
     public static let playback = Logger(subsystem: subsystem, category: "playback")
     public static let display = Logger(subsystem: subsystem, category: "display")
     public static let pause = Logger(subsystem: subsystem, category: "pause")
+    public static let login = Logger(subsystem: subsystem, category: "login")
 }

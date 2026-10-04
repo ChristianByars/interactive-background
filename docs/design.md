@@ -13,7 +13,7 @@ Turn the Phase 0 spike (one desktop-level window per screen hosting a `WKWebView
 - Per-video settings: fit (fill/fit/stretch), speed 0.25-2.0, audio on/off + volume, trim range.
 - Auto-pause: desktop covered, sleep, lock, screensaver. Plus manual Pause All. Battery pause is out of scope.
 - Minimum macOS 15. Environment is Command Line Tools only (no Xcode/XCTest); use Swift Testing.
-- Out of scope for now: interactive wallpapers, bundled interactive packs, battery pause, launch at login, global hotkey, persisting Pause All, WebM/MKV/GIF.
+- Out of scope for now: interactive wallpapers, bundled interactive packs, battery pause, global hotkey, persisting Pause All, WebM/MKV/GIF.
 
 ## Architecture
 SwiftPM package `InteractiveBackground` (`swift-tools-version:6.0`, `swiftLanguageModes: [.v5]`, `.macOS(.v15)`), dependencies App -> Engine -> Core.

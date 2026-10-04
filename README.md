@@ -22,6 +22,8 @@ open "build/Interactive Background.app"
 ```
 The app is ad-hoc signed, so the first launch may need right-click > Open. It runs from the menu bar (no Dock icon until you open the Library with Command-L).
 
+To start it at login, turn on "Launch at Login" in the menu-bar menu. macOS registers the app at its current location, so move it to `/Applications` first (not `build/`). You can also manage it in System Settings > General > Login Items.
+
 Your library lives in `~/Library/Application Support/Interactive Background/`.
 
 ## Tests
@@ -43,7 +45,7 @@ swift test -Xswiftc -F -Xswiftc $C/Frameworks -Xlinker -rpath -Xlinker $C/Framew
 - [Manual checklist](docs/manual-checklist.md): checks that need a real Mac
 
 ## Not yet
-Interactive wallpapers, battery-based pause, launch at login, a global pause hotkey, WebM/MKV/GIF.
+Interactive wallpapers, battery-based pause, a global pause hotkey, WebM/MKV/GIF.
 
 ## License
 MIT. See [LICENSE](LICENSE).

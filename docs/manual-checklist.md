@@ -69,6 +69,13 @@ Video visuals
 - [ ] Sound plays with Sound on at the chosen volume, silent when off.
 - [ ] Pause freezes the frame (not black).
 
+Launch at login (run the `.app` from `/Applications`, not `build/`)
+- [ ] Menu bar > Launch at Login shows a check mark after turning it on, and the app appears in System Settings > General > Login Items.
+- [ ] Log out and back in: the app starts on its own, no Dock icon, wallpaper shows, Library window stays closed.
+- [ ] Turn it off in System Settings > Login Items: the menu check mark clears (reopen the menu).
+- [ ] Turn it off from the menu, log out and in: the app does not start.
+- [ ] If macOS asks for approval, the menu shows "Approve Launch at Login…" and opens Login Items.
+
 Launch and power
 - [ ] No brief pause/resume flicker at launch (about 25 ms occlusion report).
 - [ ] `pmset -g assertions` shows no display-sleep hold with video playing.
